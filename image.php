@@ -60,12 +60,13 @@ class Image
         return strtolower($imageTypeArray[$this->image_size[2]]);
     }
 
-    protected function getSource()
+    protected static function getSource($file)
     {
-        switch($this->image_size[2]){
-            case 1: return imagecreatefromgif($this->image_filename);break;
-            case 2: return imagecreatefromjpeg($this->image_filename);break;
-            case 3: return imagecreatefrompng($this->image_filename);break;
+        $size = getimagesize($file);
+        switch($size[2]){
+            case 1: return imagecreatefromgif($file);break;
+            case 2: return imagecreatefromjpeg($file);break;
+            case 3: return imagecreatefrompng($file);break;
             default:
                 return null;
         }
@@ -74,9 +75,82 @@ class Image
     /**
      * 设置图片水印
      */
-    public function setImageMark()
+    public function setImageMark($water_file, $params = [
+        "font"       => "微软雅黑", //字体
+        "pos_x"      => 0,         //x轴位置
+        "pos_y"      => 0,         //y轴位置
+        "safe_mode"  => true,      //安全模式，不破坏原有图片
+        "handle"     => "save",    //save 或者 output 保存或者输出
+        "save_path"  => ""         //只有当handle为save时有效
+    ])
     {
 
+        $default_params = [
+            "font"       => "微软雅黑",         //字体
+            "pos_x"      => 0,         //x轴位置
+            "pos_y"      => 0,         //y轴位置
+            "safe_mode"  => true,       //安全模式，不破坏原有图片
+            "handle"     => "save",    //save 或者 output 保存或者输出
+            "save_path"  => ""
+        ];
+        $params = array_merge($default_params, $params);
+
+        $ground_im = self::getSource($this->image_filename);
+
+        if (!$ground_im) {
+            return null;
+        }
+
+        $water_im  = self::getSource($water_file);
+        if (!$water_im) {
+            return null;
+        }
+
+        $water_image  = new self($water_file);
+        $water_width  = $water_image->getWidth();
+        $water_height = $water_image->getHeight();
+
+        $ground_width  = $this->getWidth();
+        $ground_height = $this->getHeight();
+
+        $max_x = $ground_width - $water_width;
+        $max_y = $ground_height - $water_height;
+
+        $params["pos_x"] = $params["pos_x"] > $max_x ? $max_x : $params["pos_x"];
+        $params["pos_y"] = $params["pos_y"] > $max_y ? $max_y : $params["pos_y"];
+
+        imagecopy($ground_im, $water_im,
+            $params["pos_x"], $params["pos_y"], 0, 0,
+            $water_width, $water_height);//拷贝水印到目标文件
+
+        //设定图像的混色模式
+        imagealphablending($ground_im, true);
+        $save_path = $params["save_path"];
+
+        if ("save" == $params["handle"]) {
+            //自动生成保存路径
+            if (!$save_path) {
+                $path_info = pathinfo($this->image_filename);
+                $save_path = $path_info["dirname"] . "/" . $path_info["filename"] . "-" . time() . rand(100000, 999999) . ".mark.png";
+            }
+            if ($params["safe_mode"] && file_exists($save_path)) {
+                echo "警告：文件已存在" . $save_path;
+                return null;
+            }
+
+            //header("Content-type: image/png");
+            //覆盖写入
+            imagepng($ground_im, $save_path);
+            imagedestroy($ground_im);
+            imagedestroy($water_im);
+            return $save_path;
+        } else {
+            header("Content-type: image/png");
+            imagepng($ground_im);
+            imagedestroy($ground_im);
+            imagedestroy($water_im);
+            return null;
+        }
     }
 
     public function getWidth()
@@ -105,7 +179,7 @@ class Image
             echo "警告：文件已存在，如果需要覆盖写入请使用第二个参数，将其设置为true";
             return;
         }
-        $im = $this->getSource();
+        $im = self::getSource($this->image_filename);
         imagepng($im, $save_path);
     }
 
@@ -141,7 +215,8 @@ class Image
             "size"       => 30,        //文字大小
             "text_color" => "#000000", //文字颜色
             "safe_mode"  => true,      //安全模式，不破坏原有图片
-            "save_path"  => ""
+            "handle"     => "save",    //save 或者 output 保存或者输出
+            "save_path"  => ""         //只有当handle为save时有效
         ])
     {
         $default_params = [
@@ -152,6 +227,7 @@ class Image
             "angle"      => 0,
             "text_color" => "#000000", //文字颜色
             "safe_mode"  => true,       //安全模式，不破坏原有图片
+            "handle"     => "save",    //save 或者 output 保存或者输出
             "save_path"  => ""
         ];
         $params = array_merge($default_params, $params);
@@ -192,7 +268,7 @@ class Image
             $params["pos_y"] = $max_pos_y;
         }
 
-        $ground_image_source = $this->getSource();
+        $ground_image_source = self::getSource($this->image_filename);
         $R = hexdec(substr($params["text_color"],1,2));
         $G = hexdec(substr($params["text_color"],3,2));
         $B = hexdec(substr($params["text_color"],5));
@@ -204,34 +280,43 @@ class Image
         //var_dump($params);
 
         imagefttext(
-                $ground_image_source,
-                $params["size"],
-                $params["angle"],
-                $params["pos_x"],
-                $params["pos_y"],
-                imagecolorallocate($ground_image_source, $R, $G, $B),
-                $font_file,
-                $water_text
+            $ground_image_source,
+            $params["size"],
+            $params["angle"],
+            $params["pos_x"],
+            $params["pos_y"],
+            imagecolorallocate($ground_image_source, $R, $G, $B),
+            $font_file,
+            $water_text
         );
 
 
+        //设定图像的混色模式
+        imagealphablending($ground_image_source, true);
         $save_path = $params["save_path"];
 
-        //自动生成保存路径
-        if (!$save_path) {
-            $path_info = pathinfo($this->image_filename);
-            $save_path = $path_info["dirname"] . "/" . $path_info["filename"] . "-" . time() . rand(100000, 999999) . ".mark.png";
-        }
-        if ($params["safe_mode"] && file_exists($save_path)) {
-            echo "警告：文件已存在".$save_path;
+        if ("save" == $params["handle"]) {
+            //自动生成保存路径
+            if (!$save_path) {
+                $path_info = pathinfo($this->image_filename);
+                $save_path = $path_info["dirname"] . "/" . $path_info["filename"] . "-" . time() . rand(100000, 999999) . ".mark.png";
+            }
+            if ($params["safe_mode"] && file_exists($save_path)) {
+                echo "警告：文件已存在" . $save_path;
+                return null;
+            }
+
+            //header("Content-type: image/png");
+            //覆盖写入
+            imagepng($ground_image_source, $save_path);
+            imagedestroy($ground_image_source);
+            return $save_path;
+        } else {
+            header("Content-type: image/png");
+            imagepng($ground_image_source);
+            imagedestroy($ground_image_source);
             return null;
         }
-
-        //header("Content-type: image/png");
-        //覆盖写入
-        imagepng($ground_image_source, $save_path);
-        unset($ground_image_source);
-        return $save_path;
     }
 
     public function __destruct()
@@ -244,9 +329,10 @@ class Image
 
 $img = new \Wing\Php\Image(__DIR__."/1.jpeg");
 $img->setTextMark("hello wing",
-["text_color" => "#ffffff", "size" => 60]
+    ["text_color" => "#ffffff", "size" => 60]
 );
-$img->toPng("", true);
+$img->setImageMark(__DIR__."/m.png", ["mode"=>false, "handle" => "save"]);
+//$img->toPng("", true);
 exit;
 // 建立一幅 100X30 的图像
 $im = imagecreate(100, 35);
