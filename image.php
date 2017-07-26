@@ -76,7 +76,6 @@ class Image
      * 设置图片水印
      */
     public function setImageMark($water_file, $params = [
-        "font"       => "微软雅黑", //字体
         "pos_x"      => 0,         //x轴位置
         "pos_y"      => 0,         //y轴位置
         "safe_mode"  => true,      //安全模式，不破坏原有图片
@@ -86,7 +85,6 @@ class Image
     {
 
         $default_params = [
-            "font"       => "微软雅黑",         //字体
             "pos_x"      => 0,         //x轴位置
             "pos_y"      => 0,         //y轴位置
             "safe_mode"  => true,       //安全模式，不破坏原有图片
