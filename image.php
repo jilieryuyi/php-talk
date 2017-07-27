@@ -232,7 +232,7 @@ class Image
         $font_file = self::getFont($params["font"]);
 
 
-        //文字水印
+        //得到文字的大小 这样才能准确判定文字水印可以写入的坐标范围
         $temp = imagettfbbox($params["size"],$params["angle"],
             $font_file, $water_text
         );//取得使用 TrueType 字体的文本的范围
@@ -275,8 +275,8 @@ class Image
 //            imagecolorallocate($ground_image_source, $R, $G, $B)
 //        );
 
-        //var_dump($params);
 
+        //将文字写入到图片
         imagefttext(
             $ground_image_source,
             $params["size"],
