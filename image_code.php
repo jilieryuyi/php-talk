@@ -19,27 +19,35 @@ $w = $temp[2] - $temp[6];
 $h = $temp[3] - $temp[7];
 
 
-// 建立一幅 100X30 的图像
-$im = imagecreate($w+20, $h+20);
+//新建一个真彩色图像，
+//默认背景是黑色，返回图像标识符
+$im = imagecreatetruecolor($w+20, $h+20);
 
-// 白色背景和蓝色文本
+//白色背景和蓝色文本
 imagecolorallocate($im, 255, 255, 255);
 $textcolor = imagecolorallocate($im, 0, 0, 255);
 
 // 把字符串写在图像左上角
 //imagestring($im, 5, 0, 0, "Hello world!", $textcolor);
 
-for ($i = 0; $i <10000; $i++) {
+//随机画一些干扰
+for ($i = 0; $i <1000; $i++) {
+    //随机位置画一个句号
     imagefttext(
         $im,
         200,
         0,
-        rand(0, $w),     //使文字有10 边缘
-        rand(0,$h+20),  //使文字有10 边缘
+        rand(-20, $w),    //-20使干扰能够尽量覆盖到边缘
+        rand(-20,$h+20),  //-20使干扰能够尽量覆盖到边缘
         imagecolorallocate($im, rand(0,255), rand(0,255), rand(0,255)),
         $font,
         "。"
     );
+
+//    imageellipse($im,rand(-20, $w),rand(-20,$h+20),
+//        80,80,
+//        imagecolorallocate($im, rand(0,255), rand(0,255), rand(0,255))
+//        );
 }
 
 imagefttext(
